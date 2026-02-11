@@ -1,9 +1,11 @@
+import { useState } from 'react';
 import { allQuestions } from '../data/questions';
 import {
   calculateCompatibility,
   getCategoryComment,
   getOverallComment,
 } from '../utils/scoring';
+import { encodeResultData, getResultShareUrl } from '../utils/sharing';
 
 interface ResultsProps {
   nameA: string;
@@ -63,6 +65,38 @@ function getQuestionText(id: number): string {
 
 export default function Results({ nameA, nameB, answersA, answersB, onRestart }: ResultsProps) {
   const result = calculateCompatibility(answersA, answersB);
+  const [copied, setCopied] = useState(false);
+
+  const handleShareResult = async () => {
+    const encoded = encodeResultData(nameA, answersA, nameB, answersB);
+    const url = getResultShareUrl(encoded);
+
+    if (typeof navigator.share === 'function') {
+      try {
+        await navigator.share({
+          title: `${nameA} & ${nameB} 궁합 결과`,
+          text: `${nameA} & ${nameB}의 궁합은 ${Math.round(result.totalScore)}%! 결과를 확인해보세요.`,
+          url,
+        });
+        return;
+      } catch {
+        // User cancelled or share failed, fall through to clipboard
+      }
+    }
+
+    try {
+      await navigator.clipboard.writeText(url);
+    } catch {
+      const ta = document.createElement('textarea');
+      ta.value = url;
+      document.body.appendChild(ta);
+      ta.select();
+      document.execCommand('copy');
+      document.body.removeChild(ta);
+    }
+    setCopied(true);
+    setTimeout(() => setCopied(false), 2000);
+  };
 
   return (
     <div className="results">
@@ -180,7 +214,10 @@ export default function Results({ nameA, nameB, answersA, answersB, onRestart }:
       </div>
 
       <div className="results-footer">
-        <button className="btn btn-primary btn-full" onClick={onRestart}>
+        <button className="btn btn-primary btn-full" onClick={handleShareResult}>
+          {copied ? '링크 복사됨!' : '결과 공유하기'}
+        </button>
+        <button className="btn btn-ghost btn-full" onClick={onRestart}>
           다시 테스트하기
         </button>
       </div>

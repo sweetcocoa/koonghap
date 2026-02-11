@@ -6,7 +6,7 @@ import Transition from './components/Transition';
 import ShareLink from './components/ShareLink';
 import SharedLanding from './components/SharedLanding';
 import Results from './components/Results';
-import { getSharedDataFromUrl, type SharedData } from './utils/sharing';
+import { getSharedDataFromUrl, getResultDataFromUrl, type SharedData, type SharedResultData } from './utils/sharing';
 
 type Step =
   | 'landing'
@@ -29,20 +29,45 @@ interface PersonData {
   answers: Record<number, number>;
 }
 
-function getInitialState() {
+interface InitialState {
+  step: Step;
+  sharedData: SharedData | null;
+  resultData: SharedResultData | null;
+  personA: PersonData;
+  personB: PersonData;
+}
+
+function getInitialState(): InitialState {
+  const resultData = getResultDataFromUrl();
+  if (resultData) {
+    window.history.replaceState({}, '', window.location.pathname);
+    return {
+      step: 'results' as Step,
+      sharedData: null,
+      resultData,
+      personA: { name: resultData.nameA, answers: resultData.answersA },
+      personB: { name: resultData.nameB, answers: resultData.answersB },
+    };
+  }
+
   const data = getSharedDataFromUrl();
   if (data) {
     window.history.replaceState({}, '', window.location.pathname);
     return {
       step: 'shared-landing' as Step,
       sharedData: data,
+      resultData: null,
       personA: { name: data.name, answers: data.answers },
+      personB: { name: '', answers: {} },
     };
   }
+
   return {
     step: 'landing' as Step,
-    sharedData: null as SharedData | null,
+    sharedData: null,
+    resultData: null,
     personA: { name: '', answers: {} },
+    personB: { name: '', answers: {} },
   };
 }
 
@@ -52,7 +77,7 @@ export default function App() {
   const [step, setStep] = useState<Step>(initial.step);
   const [mode, setMode] = useState<Mode>('together');
   const [personA, setPersonA] = useState<PersonData>(initial.personA);
-  const [personB, setPersonB] = useState<PersonData>({ name: '', answers: {} });
+  const [personB, setPersonB] = useState<PersonData>(initial.personB);
   const [sharedData, setSharedData] = useState<SharedData | null>(initial.sharedData);
 
   const handleRestart = () => {
