@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { categories } from '../data/questions';
+import { categories, totalQuestions } from '../data/questions';
 
 interface SurveyProps {
   personName: string;
@@ -9,23 +9,29 @@ interface SurveyProps {
 export default function Survey({ personName, onComplete }: SurveyProps) {
   const [currentCategory, setCurrentCategory] = useState(0);
   const [answers, setAnswers] = useState<Record<number, number>>({});
+  const [showIncomplete, setShowIncomplete] = useState(false);
 
   const category = categories[currentCategory];
   const totalCategories = categories.length;
   const progress = ((currentCategory) / totalCategories) * 100;
 
-  const allAnsweredInCategory = category.questions.every(q => answers[q.id] !== undefined);
+  const isLastPage = currentCategory === totalCategories - 1;
+  const answeredCount = Object.keys(answers).length;
+  const allAnswered = answeredCount === totalQuestions;
 
   const handleAnswer = (questionId: number, value: number) => {
     setAnswers(prev => ({ ...prev, [questionId]: value }));
+    setShowIncomplete(false);
   };
 
   const handleNext = () => {
-    if (currentCategory < totalCategories - 1) {
+    if (!isLastPage) {
       setCurrentCategory(prev => prev + 1);
       window.scrollTo({ top: 0, behavior: 'smooth' });
-    } else {
+    } else if (allAnswered) {
       onComplete(answers);
+    } else {
+      setShowIncomplete(true);
     }
   };
 
@@ -33,10 +39,11 @@ export default function Survey({ personName, onComplete }: SurveyProps) {
     if (currentCategory > 0) {
       setCurrentCategory(prev => prev - 1);
       window.scrollTo({ top: 0, behavior: 'smooth' });
+      setShowIncomplete(false);
     }
   };
 
-  const answeredCount = Object.keys(answers).length;
+  const unansweredInCategory = category.questions.filter(q => answers[q.id] === undefined);
 
   return (
     <div className="survey">
@@ -46,7 +53,7 @@ export default function Survey({ personName, onComplete }: SurveyProps) {
           <div className="survey-progress-fill" style={{ width: `${progress}%` }} />
         </div>
         <div className="survey-progress-text">
-          {answeredCount}/50 완료
+          {answeredCount}/{totalQuestions} 완료
         </div>
       </div>
 
@@ -85,6 +92,15 @@ export default function Survey({ personName, onComplete }: SurveyProps) {
         ))}
       </div>
 
+      {showIncomplete && (
+        <div className="survey-incomplete">
+          아직 응답하지 않은 문항이 {totalQuestions - answeredCount}개 있어요.
+          {unansweredInCategory.length > 0 && (
+            <span> (이 페이지: {unansweredInCategory.map(q => `Q${q.id}`).join(', ')})</span>
+          )}
+        </div>
+      )}
+
       <div className="survey-nav">
         <button
           className="btn btn-ghost"
@@ -96,9 +112,9 @@ export default function Survey({ personName, onComplete }: SurveyProps) {
         <button
           className="btn btn-primary"
           onClick={handleNext}
-          disabled={!allAnsweredInCategory}
+          disabled={isLastPage && !allAnswered && showIncomplete}
         >
-          {currentCategory === totalCategories - 1 ? '완료' : '다음'}
+          {isLastPage ? '완료' : '다음'}
         </button>
       </div>
     </div>
